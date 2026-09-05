@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ddbanque</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#122019;
+    --bg-elevated:#1B2F25;
+    --bg-card-1:#1D3A2A;
+    --bg-card-2:#0F2419;
+    --ink:#F1ECDD;
+    --ink-dim:#A9B8AC;
+    --ink-faint:#6E8177;
+    --gold:#C9A24B;
+    --gold-soft:#8C7737;
+    --danger:#C0604B;
+    --danger-bg:rgba(192,96,75,0.12);
+    --ok:#7FA37B;
+    --ok-bg:rgba(127,163,123,0.12);
+    --line:rgba(241,236,221,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;line-height:1.5;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:500;margin:0;}
+  .num{font-variant-numeric:tabular-nums;}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;padding:24px 20px 64px;}
+  .brand{display:flex;align-items:baseline;gap:8px;margin-bottom:32px;}
+  .brand h1{font-size:22px;letter-spacing:0.01em;}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);}
+  .lede{color:var(--ink-dim);font-size:14px;margin-top:-18px;margin-bottom:28px;}
+
+  .card{background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:13px 16px;border-radius:10px;border:none;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+  .btn:active{opacity:0.75;}
+  .btn-primary{background:var(--gold);color:#1B2F1F;}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+  .btn-danger{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(192,96,75,0.3);}
+  .btn-ok{background:var(--ok-bg);color:var(--ok);border:1px solid rgba(127,163,123,0.3);}
+  .btn-row{display:flex;gap:8px;}
+  .btn-row .btn{flex:1;}
+  .btn-sm{padding:9px 12px;font-size:13px;width:auto;}
+  .btn-link{background:none;border:none;color:var(--ink-dim);font-size:13px;text-decoration:underline;cursor:pointer;padding:0;font-family:'Inter',sans-serif;}
+
+  label{display:block;font-size:12.5px;color:var(--ink-dim);margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  input,select{width:100%;background:var(--bg-card-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--ink);font-size:15px;font-family:'Inter',sans-serif;}
+  input:focus,select:focus{outline:none;border-color:var(--gold-soft);}
+  input::placeholder{color:var(--ink-faint);}
+
+  .msg{font-size:13.5px;padding:10px 12px;border-radius:8px;margin-bottom:14px;}
+  .msg-error{background:var(--danger-bg);color:var(--danger);}
+  .msg-ok{background:var(--ok-bg);color:var(--ok);}
+
+  /* Virtual card */
+  .vcard{background:linear-gradient(135deg,var(--bg-card-1),var(--bg-card-2));border:1px solid var(--gold-soft);border-radius:16px;padding:24px 22px;margin-bottom:20px;position:relative;overflow:hidden;}
+  .vcard::before{content:"";position:absolute;top:-40%;right:-20%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,75,0.13),transparent 70%);}
+  .vcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px;}
+  .vcard-label{font-size:11.5px;letter-spacing:0.06em;color:var(--gold);}
+  .vcard-chip{width:34px;height:24px;border-radius:5px;background:linear-gradient(135deg,#D9BC72,#8C7737);}
+  .vcard-balance{font-size:34px;font-family:'Fraunces',serif;margin-bottom:20px;}
+  .vcard-balance small{font-size:16px;color:var(--ink-dim);font-family:'Inter',sans-serif;}
+  .vcard-number{font-size:15.5px;letter-spacing:0.08em;color:var(--ink-dim);margin-bottom:14px;}
+  .vcard-bottom{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-dim);}
+  .vcard-bottom .name{color:var(--ink);font-size:13px;}
+
+  .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row-title{font-size:14.5px;}
+  .row-sub{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+  .pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;}
+  .pill-pending{background:var(--danger-bg);color:#D6A88E;}
+  .pill-ok{background:var(--ok-bg);color:var(--ok);}
+  .pill-rejected{background:rgba(255,255,255,0.06);color:var(--ink-faint);}
+
+  .empty{color:var(--ink-faint);font-size:13.5px;padding:14px 0;text-align:center;}
+  .section-title{font-size:13px;color:var(--ink-dim);margin:26px 0 10px;text-transform:none;}
+  .tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .tab{padding:7px 13px;border-radius:20px;font-size:13px;background:var(--bg-elevated);color:var(--ink-dim);border:1px solid var(--line);cursor:pointer;}
+  .tab.active{background:var(--gold);color:#1B2F1F;border-color:var(--gold);}
+  .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .top-bar .who{font-size:13px;color:var(--ink-dim);}
+  .footnote{color:var(--ink-faint);font-size:11.5px;text-align:center;margin-top:36px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Chargement…</div></div>
+
+<script>
+/* ============================================================
+   CONFIGURATION FIREBASE — À REMPLIR AVANT DE METTRE EN LIGNE
+   1. Va sur https://console.firebase.google.com
+   2. Crée un projet (gratuit)
+   3. Dans le projet : "Compilation" → "Firestore Database" → "Créer une base de données"
+      → choisis "Mode test" pour commencer
+   4. Toujours dans le projet : icône ⚙️ → "Paramètres du projet" → tout en bas
+      "Vos applications" → icône </> (Web) → donne-lui un nom → "Enregistrer l'application"
+   5. Copie l'objet firebaseConfig qui s'affiche et colle-le ci-dessous, à la place de celui-ci
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyDInEHaE7-OxAaqu1xep7IOO5IKX8X1a9A",
+  authDomain: "dblckbank.firebaseapp.com",
+  projectId: "dblckbank",
+  storageBucket: "dblckbank.firebasestorage.app",
+  messagingSenderId: "41956674386",
+  appId: "1:41956674386:web:870f5ffb8b01f6adef088b"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let mode = 'user'; // 'user' | 'admin' — switched in-app, no URL needed
+let session = null; // logged-in account id (user) — in-memory only
+let adminSession = false; // in-memory only
+let notice = null; // {type, text}
+
+async function loadData(){
+  try{
+    const snap = await db.collection('ddbanque').doc('data').get();
+    return snap.exists ? snap.data() : {accounts:{}, transfers:[]};
+  }catch(e){ return {accounts:{}, transfers:[]}; }
+}
+async function saveData(data){
+  try{ await db.collection('ddbanque').doc('data').set(data); }
+  catch(e){ notice = {type:'error', text:"L'enregistrement a échoué. Réessaie."}; }
+}
+async function getAdminPin(){
+  try{
+    const snap = await db.collection('ddbanque').doc('admin').get();
+    return snap.exists ? snap.data().pin : null;
+  }catch(e){ return null; }
+}
+async function setAdminPin(pin){
+  try{ await db.collection('ddbanque').doc('admin').set({pin}); return {ok:true}; }
+  catch(e){ return {ok:false, err: (e && e.message) ? e.message : String(e)}; }
+}
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function genCardNumber(){
+  let g=[];
+  for(let i=0;i<4;i++) g.push(String(Math.floor(1000+Math.random()*9000)));
+  return g.join(' ');
+}
+function fmt(n){ return Number(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+let DATA = {accounts:{}, transfers:[]};
+let view = 'landing';
+let adminTab = 'demandes';
+
+async function boot(){
+  DATA = await loadData();
+  render();
+}
+async function refreshData(){
+  DATA = await loadData();
+  notice = {type:'ok', text:'Actualisé.'};
+  render();
+}
+
+function activeAccounts(excludeId){
+  return Object.values(DATA.accounts).filter(a=>a.status==='active' && a.id!==excludeId);
+}
+
+// ---------- RENDER ----------
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = noticeHtml() + (mode==='admin' ? renderAdmin() : renderUser());
+}
+function noticeHtml(){
+  if(!notice) return '';
+  const html = `<div class="msg msg-${notice.type==='error'?'error':'ok'}">${esc(notice.text)}</div>`;
+  notice = null;
+  return html;
+}
+function brand(sub){
+  return `<div class="brand" ontouchstart="startPress(event)" ontouchend="cancelPress()" ontouchmove="cancelPress()" onmousedown="startPress(event)" onmouseup="cancelPress()" onmouseleave="cancelPress()" oncontextmenu="return false;" style="cursor:default;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;"><span class="dot"></span><h1>Ddbanque</h1></div>${sub?`<p class="lede">${sub}</p>`:''}`;
+}
+let pressTimer = null;
+function startPress(e){
+  if(e) e.preventDefault();
+  clearTimeout(pressTimer);
+  pressTimer = setTimeout(()=>{ enterAdmin(); }, 1100);
+}
+function cancelPress(){
+  clearTimeout(pressTimer);
+}
+
+// ---------- USER SIDE ----------
+function renderUser(){
+  if(session && DATA.accounts[session] && DATA.accounts[session].status==='active'){
+    return renderDashboard(DATA.accounts[session]);
+  }
+  session = null;
+  if(view==='signup') return renderSignup();
+  if(view==='login') return renderLogin();
+  return renderLanding();
+}
+
+function renderLanding(){
+  return `
+    ${brand()}
+    <div class="card">
+      <button class="btn btn-primary" onclick="go('login')">Me connecter</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-ghost" onclick="go('signup')">Créer un compte</button>
+    </div>
+  `;
+}
+function enterAdmin(){ mode='admin'; render(); }
+
+function renderLogin(){
+  const accounts = Object.values(DATA.accounts).filter(a=>a.status==='active');
+  return `
+    ${brand()}
+    <div class="card">
+      <label>Ton compte</label>
+      <select id="login-account">
+        <option value="">Choisir…</option>
+        ${accounts.map(a=>`<option value="${a.id}">${esc(a.pseudo)}</option>`).join('')}
+      </select>
+      <label>Code (4 chiffres)</label>
+      <input id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="doLogin()">Entrer</button>
+    </div>
+    <button class="btn-link" onclick="go('landing')">← Retour</button>
+    ${accounts.length===0?'<p class="empty">Aucun compte actif pour l’instant.</p>':''}
+  `;
+}
+function doLogin(){
+  const id = document.getElementById('login-account').value;
+  const pin = document.getElementById('login-pin').value.trim();
+  const acc = DATA.accounts[id];
+  if(!acc || acc.pin !== pin){
+    notice = {type:'error', text:'Compte ou code incorrect.'};
+  } else {
+    session = id;
+  }
+  render();
+}
+
+function renderSignup(){
+  return `
+    ${brand()}
+    <div class="card">
+      <label>Prénom</label>
+      <input id="su-first" placeholder="Camille">
+      <label>Nom</label>
+      <input id="su-last" placeholder="Durand">
+      <label>Adresse complète</label>
+      <input id="su-address" placeholder="12 rue des Lilas, 75011 Paris">
+      <label>Date de naissance</label>
+      <input id="su-dob" type="date">
+      <label>Email</label>
+      <input id="su-email" type="email" placeholder="camille@exemple.com">
+      <label>Téléphone</label>
+      <input id="su-phone" type="tel" placeholder="06 12 34 56 78">
+      <label>Pseudo (visible des autres)</label>
+      <input id="su-pseudo" placeholder="cam">
+      <label>Choisis un code à 4 chiffres</label>
+      <input id="su-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="doSignup()">Envoyer la demande</button>
+    </div>
+    <button class="btn-link" onclick="go('landing')">← Retour</button>
+  `;
+}
+async function doSignup(){
+  const firstName = document.getElementById('su-first').value.trim();
+  const lastName = document.getElementById('su-last').value.trim();
+  const address = document.getElementById('su-address').value.trim();
+  const dob = document.getElementById('su-dob').value;
+  const email = document.getElementById('su-email').value.trim();
+  const phone = document.getElementById('su-phone').value.trim();
+  const pseudo = document.getElementById('su-pseudo').value.trim();
+  const pin = document.getElementById('su-pin').value.trim();
+  if(!firstName || !lastName || !address || !dob || !email || !phone || !pseudo || !/^\d{4}$/.test(pin)){
+    notice = {type:'error', text:'Remplis tous les champs, avec un code à 4 chiffres.'};
+    render(); return;
+  }
+  if(Object.values(DATA.accounts).some(a=>a.pseudo.toLowerCase()===pseudo.toLowerCase())){
+    notice = {type:'error', text:'Ce pseudo est déjà pris.'};
+    render(); return;
+  }
+  const id = uid();
+  DATA.accounts[id] = {id, firstName, lastName, address, dob, email, phone, pseudo, pin, balance:0, status:'pending', cardNumber:null, createdAt:Date.now()};
+  await saveData(DATA);
+  notice = {type:'ok', text:'Demande envoyée. Reviens une fois validée par l’admin.'};
+  view = 'landing';
+  render();
+}
+
+function renderDashboard(acc){
+  const myTransfers = DATA.transfers.filter(t=>t.fromId===acc.id||t.toId===acc.id)
+    .sort((a,b)=>b.createdAt-a.createdAt).slice(0,8);
+  const others = activeAccounts(acc.id);
+  return `
+    <div class="top-bar">
+      ${brand()}
+      <div style="display:flex;gap:14px;align-items:center;">
+        <button class="btn-link" onclick="refreshData()">↻</button>
+        <button class="btn-link" onclick="logout()">Se déconnecter</button>
+      </div>
+    </div>
+    <div class="vcard">
+      <div class="vcard-top">
+        <span class="vcard-label">CARTE VIRTUELLE</span>
+        <div class="vcard-chip"></div>
+      </div>
+      <div class="vcard-balance"><span class="num">${fmt(acc.balance)}</span> <small>u.</small></div>
+      <div class="vcard-number num">•••• •••• ${acc.cardNumber.split(' ').slice(2).join(' ')}</div>
+      <div class="vcard-bottom">
+        <span class="name">${esc(acc.pseudo)}</span>
+        <span>${new Date(acc.createdAt).toLocaleDateString('fr-FR',{month:'2-digit',year:'2-digit'})}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Envoyer à</label>
+      <select id="tr-to">
+        <option value="">Choisir un compte…</option>
+        ${others.map(o=>`<option value="${o.id}">${esc(o.pseudo)}</option>`).join('')}
+      </select>
+      <label>Montant</label>
+      <input id="tr-amount" type="number" min="0.01" step="0.01" placeholder="0.00">
+      <label>Motif (facultatif)</label>
+      <input id="tr-note" placeholder="Repas, cadeau…">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="requestTransfer('${acc.id}')">Demander le virement</button>
+      <p style="color:var(--ink-faint);font-size:12px;margin-top:10px;">L'admin valide chaque virement avant qu'il parte.</p>
+    </div>
+
+    <div class="section-title">Historique</div>
+    <div class="card">
+      ${myTransfers.length===0?'<div class="empty">Rien pour l’instant.</div>':myTransfers.map(t=>historyRow(t,acc.id)).join('')}
+    </div>
+  `;
+}
+function historyRow(t, myId){
+  const outgoing = t.fromId===myId;
+  const otherName = outgoing ? (DATA.accounts[t.toId]?.pseudo||'—') : (t.fromId? (DATA.accounts[t.fromId]?.pseudo||'—') : 'Admin');
+  const sign = t.type==='topup' ? '+' : (outgoing?'-':'+');
+  const label = t.type==='topup' ? `Alimenté par l'admin` : (outgoing?`Vers ${esc(otherName)}`:`De ${esc(otherName)}`);
+  const pillClass = t.status==='pending'?'pill-pending':t.status==='approved'?'pill-ok':'pill-rejected';
+  const pillText = t.status==='pending'?'En attente':t.status==='approved'?'Validé':'Refusé';
+  return `<div class="row">
+    <div>
+      <div class="row-title">${label}</div>
+      <div class="row-sub">${t.note?esc(t.note)+' · ':''}${new Date(t.createdAt).toLocaleDateString('fr-FR')}</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="num" style="font-size:14px;">${sign}${fmt(t.amount)}</div>
+      <span class="pill ${pillClass}">${pillText}</span>
+    </div>
+  </div>`;
+}
+async function requestTransfer(fromId){
+  const toId = document.getElementById('tr-to').value;
+  const amount = parseFloat(document.getElementById('tr-amount').value);
+  const note = document.getElementById('tr-note').value.trim();
+  if(!toId || !amount || amount<=0){
+    notice = {type:'error', text:'Choisis un destinataire et un montant valide.'};
+    render(); return;
+  }
+  DATA.transfers.push({id:uid(), fromId, toId, amount, note, status:'pending', type:'transfer', createdAt:Date.now()});
+  await saveData(DATA);
+  notice = {type:'ok', text:'Demande de virement envoyée.'};
+  render();
+}
+function logout(){ session=null; view='landing'; render(); }
+async function go(v){
+  view=v;
+  if(v==='login'){ DATA = await loadData(); }
+  render();
+}
+
+// ---------- ADMIN SIDE ----------
+async function renderAdminEntry(){
+  const pin = await getAdminPin();
+  return pin;
+}
+function renderAdmin(){
+  if(adminSession) return renderAdminDashboard();
+  return renderAdminLogin();
+}
+function renderAdminLogin(){
+  return `
+    ${brand('Accès admin')}
+    <div class="card" id="admin-login-card">
+      <div class="empty">Vérification…</div>
+    </div>
+    <button class="btn-link" onclick="exitAdmin()">← Retour</button>
+    <div style="height:8px"></div>
+    <button class="btn-link" onclick="testStorage()">Tester la connexion Firebase</button>
+    <div id="diag-result"></div>
+  `;
+}
+async function testStorage(){
+  const box = document.getElementById('diag-result');
+  box.innerHTML = '<p style="font-size:12px;color:var(--ink-dim);">Test en cours…</p>';
+  try{
+    await db.collection('ddbanque').doc('diag-test').set({ok:true, at:Date.now()});
+    const snap = await db.collection('ddbanque').doc('diag-test').get();
+    if(snap.exists && snap.data().ok===true){
+      box.innerHTML = '<div class="card" style="margin-top:10px;font-size:12.5px;color:var(--ok);">Connexion Firebase OK — lecture et écriture fonctionnent.</div>';
+    } else {
+      box.innerHTML = '<div class="card" style="margin-top:10px;font-size:12.5px;color:var(--danger);">Écriture envoyée mais relecture vide — vérifie les règles Firestore.</div>';
+    }
+  }catch(e){
+    box.innerHTML = '<div class="card" style="margin-top:10px;font-size:12.5px;color:var(--danger);">Erreur — ' + esc(e.message||String(e)) + '<br><br>Vérifie que firebaseConfig est bien rempli et que Firestore est activé en mode test.</div>';
+  }
+}
+function exitAdmin(){ mode='user'; view='landing'; render(); }
+async function mountAdminLogin(){
+  const existingPin = await getAdminPin();
+  const card = document.getElementById('admin-login-card');
+  if(!card) return;
+  if(!existingPin){
+    card.innerHTML = `
+      <label>Choisis un code admin (4 chiffres minimum)</label>
+      <input id="admin-new-pin" type="password" inputmode="numeric" placeholder="••••">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="createAdminPin()">Configurer</button>
+    `;
+  } else {
+    card.innerHTML = `
+      <label>Code admin</label>
+      <input id="admin-pin-input" type="password" inputmode="numeric" placeholder="••••">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="checkAdminPin()">Entrer</button>
+    `;
+  }
+}
+async function createAdminPin(){
+  const pin = document.getElementById('admin-new-pin').value.trim();
+  if(pin.length<4){ notice={type:'error',text:'Au moins 4 chiffres.'}; render(); return; }
+  const res = await setAdminPin(pin);
+  if(!res.ok){
+    notice = {type:'error', text:"Échec : " + res.err};
+    render(); return;
+  }
+  adminSession = true;
+  notice = {type:'ok', text:'Code admin configuré.'};
+  render();
+}
+async function checkAdminPin(){
+  const pin = document.getElementById('admin-pin-input').value.trim();
+  const real = await getAdminPin();
+  if(pin===real){ adminSession = true; DATA = await loadData(); render(); }
+  else { notice={type:'error',text:'Code incorrect.'}; render(); }
+}
+
+function renderAdminDashboard(){
+  const pending = Object.values(DATA.accounts).filter(a=>a.status==='pending');
+  const activeA = Object.values(DATA.accounts).filter(a=>a.status==='active');
+  const pendingTr = DATA.transfers.filter(t=>t.status==='pending' && t.type==='transfer');
+  return `
+    <div class="top-bar">
+      ${brand()}
+      <div style="display:flex;gap:14px;align-items:center;">
+        <button class="btn-link" onclick="refreshData()">↻</button>
+        <button class="btn-link" onclick="adminLogout()">Quitter</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab ${adminTab==='demandes'?'active':''}" onclick="setAdminTab('demandes')">Demandes (${pending.length})</div>
+      <div class="tab ${adminTab==='virements'?'active':''}" onclick="setAdminTab('virements')">Virements (${pendingTr.length})</div>
+      <div class="tab ${adminTab==='alimenter'?'active':''}" onclick="setAdminTab('alimenter')">Alimenter</div>
+      <div class="tab ${adminTab==='comptes'?'active':''}" onclick="setAdminTab('comptes')">Comptes</div>
+    </div>
+    ${adminTab==='demandes'?renderPendingAccounts(pending):''}
+    ${adminTab==='virements'?renderPendingTransfers(pendingTr):''}
+    ${adminTab==='alimenter'?renderTopup(activeA):''}
+    ${adminTab==='comptes'?renderAllAccounts(activeA):''}
+  `;
+}
+function setAdminTab(t){ adminTab=t; render(); }
+function adminLogout(){ adminSession=false; mode='user'; view='landing'; render(); }
+
+function renderPendingAccounts(list){
+  if(list.length===0) return '<div class="card"><div class="empty">Aucune demande en attente.</div></div>';
+  return list.map(a=>`
+    <div class="card">
+      <div class="row-title" style="margin-bottom:8px;">${esc(a.firstName)} ${esc(a.lastName)} · @${esc(a.pseudo)}</div>
+      <div class="row-sub">Né(e) le ${new Date(a.dob).toLocaleDateString('fr-FR')}</div>
+      <div class="row-sub">${esc(a.address)}</div>
+      <div class="row-sub">${esc(a.email)} · ${esc(a.phone)}</div>
+      <div class="row-sub">Demande du ${new Date(a.createdAt).toLocaleDateString('fr-FR')}</div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-ok btn-sm" onclick="approveAccount('${a.id}')">Valider</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectAccount('${a.id}')">Refuser</button>
+      </div>
+    </div>`).join('');
+}
+async function approveAccount(id){
+  DATA.accounts[id].status='active';
+  DATA.accounts[id].cardNumber = genCardNumber();
+  await saveData(DATA);
+  notice = {type:'ok', text:'Compte validé.'};
+  render();
+}
+async function rejectAccount(id){
+  delete DATA.accounts[id];
+  await saveData(DATA);
+  notice = {type:'ok', text:'Demande refusée.'};
+  render();
+}
+
+function renderPendingTransfers(list){
+  if(list.length===0) return '<div class="card"><div class="empty">Aucun virement en attente.</div></div>';
+  return `<div class="card">${list.map(t=>{
+    const from = DATA.accounts[t.fromId], to = DATA.accounts[t.toId];
+    return `<div class="row">
+      <div>
+        <div class="row-title">${esc(from?.pseudo||'?')} → ${esc(to?.pseudo||'?')}</div>
+        <div class="row-sub">${t.note?esc(t.note)+' · ':''}<span class="num">${fmt(t.amount)}</span> u.</div>
+      </div>
+      <div class="btn-row" style="width:auto;">
+        <button class="btn btn-ok btn-sm" onclick="approveTransfer('${t.id}')">Valider</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectTransfer('${t.id}')">Refuser</button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+async function approveTransfer(id){
+  const t = DATA.transfers.find(x=>x.id===id);
+  const from = DATA.accounts[t.fromId];
+  if(from.balance < t.amount){
+    notice = {type:'error', text:`Solde insuffisant chez ${from.pseudo}.`};
+    render(); return;
+  }
+  from.balance -= t.amount;
+  DATA.accounts[t.toId].balance += t.amount;
+  t.status='approved';
+  await saveData(DATA);
+  notice = {type:'ok', text:'Virement validé.'};
+  render();
+}
+async function rejectTransfer(id){
+  const t = DATA.transfers.find(x=>x.id===id);
+  t.status='rejected';
+  await saveData(DATA);
+  notice = {type:'ok', text:'Virement refusé.'};
+  render();
+}
+
+function renderTopup(accounts){
+  return `<div class="card">
+    <label>Compte à alimenter</label>
+    <select id="topup-account">
+      <option value="">Choisir…</option>
+      ${accounts.map(a=>`<option value="${a.id}">${esc(a.pseudo)} — ${fmt(a.balance)} u.</option>`).join('')}
+    </select>
+    <label>Montant à ajouter</label>
+    <input id="topup-amount" type="number" min="0.01" step="0.01" placeholder="0.00">
+    <div style="height:14px"></div>
+    <button class="btn btn-primary" onclick="doTopup()">Alimenter</button>
+  </div>`;
+}
+async function doTopup(){
+  const id = document.getElementById('topup-account').value;
+  const amount = parseFloat(document.getElementById('topup-amount').value);
+  if(!id || !amount || amount<=0){
+    notice={type:'error',text:'Choisis un compte et un montant valide.'}; render(); return;
+  }
+  DATA.accounts[id].balance += amount;
+  DATA.transfers.push({id:uid(), fromId:null, toId:id, amount, note:'', status:'approved', type:'topup', createdAt:Date.now()});
+  await saveData(DATA);
+  notice = {type:'ok', text:`${fmt(amount)} u. ajoutés à ${DATA.accounts[id].pseudo}.`};
+  render();
+}
+
+function renderAllAccounts(accounts){
+  if(accounts.length===0) return '<div class="card"><div class="empty">Aucun compte actif.</div></div>';
+  return `<div class="card">${accounts.map(a=>`
+    <div class="row">
+      <div>
+        <div class="row-title">${esc(a.firstName)} ${esc(a.lastName)} · @${esc(a.pseudo)}</div>
+        <div class="row-sub num">Carte •••• ${a.cardNumber.split(' ')[3]}</div>
+      </div>
+      <div class="num" style="font-size:15px;">${fmt(a.balance)} u.</div>
+    </div>`).join('')}</div>`;
+}
+
+// ---------- INIT ----------
+boot().then(()=>{
+  if(mode==='admin') mountAdminLogin();
+});
+// Re-mount admin login inputs after each render if needed
+const origRender = render;
+render = function(){
+  origRender();
+  if(mode==='admin' && !adminSession) mountAdminLogin();
+};
+</script>
+</body>
+</html>
