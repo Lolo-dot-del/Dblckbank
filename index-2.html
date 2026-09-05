@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dblckbank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#122019; --bg-elevated:#1B2F25; --bg-card-1:#1D3A2A; --bg-card-2:#0F2419;
+    --ink:#F1ECDD; --ink-dim:#A9B8AC; --ink-faint:#6E8177;
+    --gold:#C9A24B; --gold-soft:#8C7737;
+    --danger:#C0604B; --danger-bg:rgba(192,96,75,0.12);
+    --ok:#7FA37B; --ok-bg:rgba(127,163,123,0.12);
+    --line:rgba(241,236,221,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;line-height:1.5;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:500;margin:0;}
+  .num{font-variant-numeric:tabular-nums;}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;padding:24px 20px 64px;}
+  .brand{display:flex;align-items:baseline;gap:8px;margin-bottom:32px;}
+  .brand h1{font-size:22px;letter-spacing:0.01em;}
+  .brand .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);}
+  .lede{color:var(--ink-dim);font-size:14px;margin-top:-18px;margin-bottom:28px;}
+  .card{background:var(--bg-elevated);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:13px 16px;border-radius:10px;border:none;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;}
+  .btn:active{opacity:0.75;}
+  .btn-primary{background:var(--gold);color:#1B2F1F;}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+  .btn-sm{padding:9px 12px;font-size:13px;width:auto;}
+  .btn-link{background:none;border:none;color:var(--ink-dim);font-size:13px;text-decoration:underline;cursor:pointer;padding:0;font-family:'Inter',sans-serif;}
+  label{display:block;font-size:12.5px;color:var(--ink-dim);margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  input,select{width:100%;background:var(--bg-card-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px;color:var(--ink);font-size:15px;font-family:'Inter',sans-serif;}
+  input:focus,select:focus{outline:none;border-color:var(--gold-soft);}
+  input::placeholder{color:var(--ink-faint);}
+  .msg{font-size:13.5px;padding:10px 12px;border-radius:8px;margin-bottom:14px;}
+  .msg-error{background:var(--danger-bg);color:var(--danger);}
+  .msg-ok{background:var(--ok-bg);color:var(--ok);}
+  .vcard{background:linear-gradient(135deg,var(--bg-card-1),var(--bg-card-2));border:1px solid var(--gold-soft);border-radius:16px;padding:24px 22px;margin-bottom:18px;position:relative;overflow:hidden;}
+  .vcard::before{content:"";position:absolute;top:-40%;right:-20%;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,75,0.13),transparent 70%);}
+  .vcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px;}
+  .vcard-label{font-size:11.5px;letter-spacing:0.06em;color:var(--gold);}
+  .vcard-chip{width:34px;height:24px;border-radius:5px;background:linear-gradient(135deg,#D9BC72,#8C7737);}
+  .vcard-balance{font-size:32px;font-family:'Fraunces',serif;margin-bottom:18px;}
+  .vcard-balance small{font-size:15px;color:var(--ink-dim);font-family:'Inter',sans-serif;}
+  .vcard-number{font-size:15px;letter-spacing:0.08em;color:var(--ink-dim);margin-bottom:12px;}
+  .vcard-bottom{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-dim);}
+  .vcard-bottom .name{color:var(--ink);font-size:13px;}
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+  .action{background:var(--bg-elevated);border:1px solid var(--line);border-radius:12px;padding:14px 6px;text-align:center;cursor:pointer;color:var(--ink);font-size:12px;}
+  .action .icon{font-size:19px;display:block;margin-bottom:6px;}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row-title{font-size:14.5px;}
+  .row-sub{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+  .pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;}
+  .pill-pending{background:var(--danger-bg);color:#D6A88E;}
+  .pill-ok{background:var(--ok-bg);color:var(--ok);}
+  .pill-rejected{background:rgba(255,255,255,0.06);color:var(--ink-faint);}
+  .empty{color:var(--ink-faint);font-size:13.5px;padding:14px 0;text-align:center;}
+  .section-title{font-size:13px;color:var(--ink-dim);margin:26px 0 10px;}
+  .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .bar-icon{display:flex;gap:14px;align-items:center;}
+  .progress-track{background:var(--bg-card-2);border-radius:20px;height:8px;overflow:hidden;margin:10px 0 4px;}
+  .progress-fill{background:var(--gold);height:100%;border-radius:20px;}
+  .info-line{font-size:14px;color:var(--ink-dim);padding:8px 0;border-bottom:1px solid var(--line);}
+  .info-line b{color:var(--ink);font-weight:500;}
+  .info-line:last-child{border-bottom:none;}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Chargement…</div></div>
+
+<script>
+/* CONFIG FIREBASE — projet Dblckbank */
+const firebaseConfig = {
+  apiKey: "AIzaSyDInEHaE7-OxAaqu1xep7IOO5IKX8X1a9A",
+  authDomain: "dblckbank.firebaseapp.com",
+  projectId: "dblckbank",
+  storageBucket: "dblckbank.firebasestorage.app",
+  messagingSenderId: "41956674386",
+  appId: "1:41956674386:web:870f5ffb8b01f6adef088b"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const COL = 'dblckbank';
+
+let session = null;
+let view = 'landing';
+let notice = null;
+let DATA = {accounts:{}, transfers:[]};
+
+async function loadData(){
+  try{
+    const snap = await db.collection(COL).doc('data').get();
+    return snap.exists ? snap.data() : {accounts:{}, transfers:[]};
+  }catch(e){ return {accounts:{}, transfers:[]}; }
+}
+async function saveData(data){
+  try{ await db.collection(COL).doc('data').set(data); return true; }
+  catch(e){ notice={type:'error',text:"L'enregistrement a échoué. Réessaie."}; return false; }
+}
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function genCardNumber(){ let g=[]; for(let i=0;i<4;i++) g.push(String(Math.floor(1000+Math.random()*9000))); return g.join(' '); }
+function fmt(n){ return Number(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function boot(){ DATA = await loadData(); render(); }
+async function refreshData(){ DATA = await loadData(); notice={type:'ok',text:'Actualisé.'}; render(); }
+async function go(v){ view=v; if(v==='login'){ DATA = await loadData(); } render(); }
+function activeAccounts(excludeId){ return Object.values(DATA.accounts).filter(a=>a.status==='active' && a.id!==excludeId); }
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = noticeHtml() + renderView();
+}
+function noticeHtml(){
+  if(!notice) return '';
+  const html = `<div class="msg msg-${notice.type==='error'?'error':'ok'}">${esc(notice.text)}</div>`;
+  notice=null; return html;
+}
+function brand(sub){
+  return `<div class="brand"><span class="dot"></span><h1>Dblckbank</h1></div>${sub?`<p class="lede">${sub}</p>`:''}`;
+}
+
+function renderView(){
+  if(session && DATA.accounts[session] && DATA.accounts[session].status==='active'){
+    const acc = DATA.accounts[session];
+    if(view==='send') return renderSend(acc);
+    if(view==='vault') return renderVault(acc);
+    if(view==='history') return renderHistory(acc);
+    if(view==='profile') return renderProfile(acc);
+    return renderDashboard(acc);
+  }
+  session = null;
+  if(view==='signup') return renderSignup();
+  if(view==='login') return renderLogin();
+  return renderLanding();
+}
+
+// ---------- LANDING / AUTH ----------
+function renderLanding(){
+  return `
+    ${brand()}
+    <div class="card">
+      <button class="btn btn-primary" onclick="go('login')">Me connecter</button>
+      <div style="height:10px"></div>
+      <button class="btn btn-ghost" onclick="go('signup')">Créer un compte</button>
+    </div>
+  `;
+}
+function renderLogin(){
+  const accounts = Object.values(DATA.accounts).filter(a=>a.status==='active');
+  return `
+    ${brand()}
+    <div class="card">
+      <label>Ton compte</label>
+      <select id="login-account">
+        <option value="">Choisir…</option>
+        ${accounts.map(a=>`<option value="${a.id}">${esc(a.pseudo)}</option>`).join('')}
+      </select>
+      <label>Code (4 chiffres)</label>
+      <input id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="doLogin()">Entrer</button>
+    </div>
+    <button class="btn-link" onclick="go('landing')">← Retour</button>
+    ${accounts.length===0?'<p class="empty">Aucun compte actif pour l’instant.</p>':''}
+  `;
+}
+function doLogin(){
+  const id = document.getElementById('login-account').value;
+  const pin = document.getElementById('login-pin').value.trim();
+  const acc = DATA.accounts[id];
+  if(!acc || acc.pin !== pin){ notice={type:'error',text:'Compte ou code incorrect.'}; }
+  else { session = id; }
+  render();
+}
+function renderSignup(){
+  return `
+    ${brand()}
+    <div class="card">
+      <label>Prénom</label><input id="su-first" placeholder="Camille">
+      <label>Nom</label><input id="su-last" placeholder="Durand">
+      <label>Adresse complète</label><input id="su-address" placeholder="12 rue des Lilas, 75011 Paris">
+      <label>Date de naissance</label><input id="su-dob" type="date">
+      <label>Email</label><input id="su-email" type="email" placeholder="camille@exemple.com">
+      <label>Téléphone</label><input id="su-phone" type="tel" placeholder="06 12 34 56 78">
+      <label>Pseudo (visible des autres)</label><input id="su-pseudo" placeholder="cam">
+      <label>Choisis un code à 4 chiffres</label>
+      <input id="su-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="doSignup()">Envoyer la demande</button>
+    </div>
+    <button class="btn-link" onclick="go('landing')">← Retour</button>
+  `;
+}
+async function doSignup(){
+  const firstName = document.getElementById('su-first').value.trim();
+  const lastName = document.getElementById('su-last').value.trim();
+  const address = document.getElementById('su-address').value.trim();
+  const dob = document.getElementById('su-dob').value;
+  const email = document.getElementById('su-email').value.trim();
+  const phone = document.getElementById('su-phone').value.trim();
+  const pseudo = document.getElementById('su-pseudo').value.trim();
+  const pin = document.getElementById('su-pin').value.trim();
+  if(!firstName||!lastName||!address||!dob||!email||!phone||!pseudo||!/^\d{4}$/.test(pin)){
+    notice={type:'error',text:'Remplis tous les champs, avec un code à 4 chiffres.'}; render(); return;
+  }
+  if(Object.values(DATA.accounts).some(a=>a.pseudo.toLowerCase()===pseudo.toLowerCase())){
+    notice={type:'error',text:'Ce pseudo est déjà pris.'}; render(); return;
+  }
+  const id = uid();
+  DATA.accounts[id] = {id,firstName,lastName,address,dob,email,phone,pseudo,pin,balance:0,status:'pending',cardNumber:null,vaults:[],createdAt:Date.now()};
+  const ok = await saveData(DATA);
+  notice = ok ? {type:'ok',text:'Demande envoyée. Reviens une fois validée par l’admin.'} : notice;
+  view='landing'; render();
+}
+function logout(){ session=null; view='landing'; render(); }
+
+// ---------- DASHBOARD ----------
+function renderDashboard(acc){
+  const myTransfers = DATA.transfers.filter(t=>t.fromId===acc.id||t.toId===acc.id)
+    .sort((a,b)=>b.createdAt-a.createdAt).slice(0,5);
+  return `
+    <div class="top-bar">
+      ${brand()}
+      <div class="bar-icon">
+        <button class="btn-link" onclick="refreshData()">↻</button>
+        <button class="btn-link" onclick="logout()">Se déconnecter</button>
+      </div>
+    </div>
+    <div class="vcard">
+      <div class="vcard-top">
+        <span class="vcard-label">CARTE VIRTUELLE</span>
+        <div class="vcard-chip"></div>
+      </div>
+      <div class="vcard-balance"><span class="num">${fmt(acc.balance)}</span> <small>u.</small></div>
+      <div class="vcard-number num">•••• •••• ${acc.cardNumber.split(' ').slice(2).join(' ')}</div>
+      <div class="vcard-bottom">
+        <span class="name">${esc(acc.pseudo)}</span>
+        <span>${new Date(acc.createdAt).toLocaleDateString('fr-FR',{month:'2-digit',year:'2-digit'})}</span>
+      </div>
+    </div>
+    <div class="actions">
+      <div class="action" onclick="go('send')"><span class="icon">↗</span>Envoyer</div>
+      <div class="action" onclick="go('vault')"><span class="icon">◎</span>Cagnotte</div>
+      <div class="action" onclick="go('profile')"><span class="icon">☰</span>Profil</div>
+    </div>
+    <div class="section-title">Activité récente</div>
+    <div class="card">
+      ${myTransfers.length===0?'<div class="empty">Rien pour l’instant.</div>':myTransfers.map(t=>historyRow(t,acc.id)).join('')}
+    </div>
+    <button class="btn-link" onclick="go('history')">Voir tout l'historique</button>
+  `;
+}
+function historyRow(t, myId){
+  const outgoing = t.fromId===myId;
+  let label, sign;
+  if(t.type==='topup'){ label = "Alimenté par l'admin"; sign='+'; }
+  else if(t.type==='vault'){ label = `Cagnotte "${esc(t.note||'')}"`; sign='+'; }
+  else {
+    const otherName = outgoing ? (DATA.accounts[t.toId]?.pseudo||'—') : (DATA.accounts[t.fromId]?.pseudo||'—');
+    label = outgoing?`Vers ${esc(otherName)}`:`De ${esc(otherName)}`;
+    sign = outgoing?'-':'+';
+  }
+  const pillClass = t.status==='pending'?'pill-pending':t.status==='approved'?'pill-ok':'pill-rejected';
+  const pillText = t.status==='pending'?'En attente':t.status==='approved'?'Validé':'Refusé';
+  return `<div class="row">
+    <div>
+      <div class="row-title">${label}</div>
+      <div class="row-sub">${(t.type==='transfer'&&t.note)?esc(t.note)+' · ':''}${new Date(t.createdAt).toLocaleDateString('fr-FR')}</div>
+    </div>
+    <div style="text-align:right;">
+      <div class="num" style="font-size:14px;">${sign}${fmt(t.amount)}</div>
+      <span class="pill ${pillClass}">${pillText}</span>
+    </div>
+  </div>`;
+}
+function renderHistory(acc){
+  const myTransfers = DATA.transfers.filter(t=>t.fromId===acc.id||t.toId===acc.id).sort((a,b)=>b.createdAt-a.createdAt);
+  return `
+    <div class="top-bar">${brand()}<button class="btn-link" onclick="go('dashboard')">← Retour</button></div>
+    <div class="card">${myTransfers.length===0?'<div class="empty">Rien pour l’instant.</div>':myTransfers.map(t=>historyRow(t,acc.id)).join('')}</div>
+  `;
+}
+
+// ---------- SEND ----------
+function renderSend(acc){
+  const others = activeAccounts(acc.id);
+  return `
+    <div class="top-bar">${brand()}<button class="btn-link" onclick="go('dashboard')">← Retour</button></div>
+    <div class="card">
+      <label>Envoyer à</label>
+      <select id="tr-to"><option value="">Choisir un compte…</option>${others.map(o=>`<option value="${o.id}">${esc(o.pseudo)}</option>`).join('')}</select>
+      <label>Montant</label>
+      <input id="tr-amount" type="number" min="0.01" step="0.01" placeholder="0.00">
+      <label>Motif (facultatif)</label>
+      <input id="tr-note" placeholder="Repas, cadeau…">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="requestTransfer('${acc.id}')">Demander le virement</button>
+      <p style="color:var(--ink-faint);font-size:12px;margin-top:10px;">L'admin valide chaque virement avant qu'il parte.</p>
+    </div>
+  `;
+}
+async function requestTransfer(fromId){
+  const toId = document.getElementById('tr-to').value;
+  const amount = parseFloat(document.getElementById('tr-amount').value);
+  const note = document.getElementById('tr-note').value.trim();
+  if(!toId||!amount||amount<=0){ notice={type:'error',text:'Choisis un destinataire et un montant valide.'}; render(); return; }
+  DATA.transfers.push({id:uid(),fromId,toId,amount,note,status:'pending',type:'transfer',createdAt:Date.now()});
+  const ok = await saveData(DATA);
+  if(ok){ notice={type:'ok',text:'Demande de virement envoyée.'}; view='dashboard'; }
+  render();
+}
+
+// ---------- VAULT (cagnotte) ----------
+function renderVault(acc){
+  const vaults = acc.vaults||[];
+  return `
+    <div class="top-bar">${brand()}<button class="btn-link" onclick="go('dashboard')">← Retour</button></div>
+    <div class="card">
+      <label>Nom de la cagnotte</label>
+      <input id="vault-name" placeholder="Vacances, sneakers…">
+      <label>Objectif</label>
+      <input id="vault-target" type="number" min="1" step="0.01" placeholder="0.00">
+      <div style="height:14px"></div>
+      <button class="btn btn-primary" onclick="createVault('${acc.id}')">Créer la cagnotte</button>
+    </div>
+    <div class="section-title">Tes cagnottes</div>
+    ${vaults.length===0?'<div class="card"><div class="empty">Aucune cagnotte pour l’instant.</div></div>':vaults.map(v=>vaultCard(v)).join('')}
+  `;
+}
+function vaultCard(v){
+  const pct = Math.min(100, Math.round((v.saved/v.target)*100));
+  return `<div class="card">
+    <div class="row-title">${esc(v.name)}</div>
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div class="row-sub num">${fmt(v.saved)} / ${fmt(v.target)} u. (${pct}%)</div>
+  </div>`;
+}
+async function createVault(accId){
+  const name = document.getElementById('vault-name').value.trim();
+  const target = parseFloat(document.getElementById('vault-target').value);
+  if(!name||!target||target<=0){ notice={type:'error',text:'Donne un nom et un objectif valide.'}; render(); return; }
+  DATA.accounts[accId].vaults = DATA.accounts[accId].vaults||[];
+  DATA.accounts[accId].vaults.push({id:uid(),name,target,saved:0});
+  const ok = await saveData(DATA);
+  if(ok) notice={type:'ok',text:'Cagnotte créée.'};
+  render();
+}
+
+// ---------- PROFILE ----------
+function renderProfile(acc){
+  return `
+    <div class="top-bar">${brand()}<button class="btn-link" onclick="go('dashboard')">← Retour</button></div>
+    <div class="card">
+      <div class="info-line">Nom : <b>${esc(acc.firstName)} ${esc(acc.lastName)}</b></div>
+      <div class="info-line">Pseudo : <b>${esc(acc.pseudo)}</b></div>
+      <div class="info-line">Né(e) le : <b>${new Date(acc.dob).toLocaleDateString('fr-FR')}</b></div>
+      <div class="info-line">Adresse : <b>${esc(acc.address)}</b></div>
+      <div class="info-line">Email : <b>${esc(acc.email)}</b></div>
+      <div class="info-line">Téléphone : <b>${esc(acc.phone)}</b></div>
+      <div class="info-line">Membre depuis : <b>${new Date(acc.createdAt).toLocaleDateString('fr-FR')}</b></div>
+    </div>
+  `;
+}
+
+boot();
+</script>
+</body>
+</html>
